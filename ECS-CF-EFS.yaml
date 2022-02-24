@@ -1,0 +1,312 @@
+#variable region is us-east-2
+export WOF_AWS_REGION=us-east-2
+
+# Account ID 
+export WOF_ACCOUNT_ID=$(aws sts get-caller-identity --query 'Account' --output text)
+
+#Giving the cluster Name
+export WOF_ECS_CLUSTER_NAME=ecs-fargate-wordpress
+
+#Giving the stack name
+export WOF_CFN_STACK_NAME=wordPress-on-Fargate
+echo $WOF_AWS_REGION
+echo $WOF_ACCOUNT_ID
+echo $WOF_ECS_CLUSTER_NAME
+echo $WOF_CFN_STACK_NAME
+echo "Create a stack using CloudFormation:"
+
+#wget wordpress.yaml template
+wget https://raw.githubusercontent.com/aws-samples/containers-blog-maelstrom/main/CloudFormation/wordpress-ecs-fargate.yaml
+
+#creating stack by using the variables mentioned above
+aws cloudformation create-stack \
+  --stack-name $WOF_CFN_STACK_NAME \
+  --region $WOF_AWS_REGION \
+  --template-body file://wordpress-ecs-fargate.yaml
+echo $WOF_CFN_STACK_NAME
+echo "Wait Command:"
+
+
+# waiting for the stack to create all the resources
+aws cloudformation wait stack-create-complete \
+  --stack-name $(aws cloudformation describe-stacks  \
+    --region $WOF_AWS_REGION \
+    --stack-name $WOF_CFN_STACK_NAME \
+    --query 'Stacks[0].StackId' --output text) \
+  --region $WOF_AWS_REGION
+
+#getting EFS ID from the output of stack
+echo "Step 2 get the efs ID from cf stack  output"
+aws cloudformation describe-stacks  \
+  --region $WOF_AWS_REGION \
+  --stack-name $WOF_CFN_STACK_NAME \
+  --query "Stacks[0].Outputs[?OutputKey=='EFSFSId'].OutputValue" \
+  --output text
+
+#getting EFS Access Point
+echo "Step 3 get the efs access point  ID from cf stack  output"
+aws cloudformation describe-stacks  \
+  --region $WOF_AWS_REGION \
+  --stack-name $WOF_CFN_STACK_NAME \
+  --query "Stacks[0].Outputs[?OutputKey=='EFSAccessPoint'].OutputValue" \
+  --output text
+
+#getting RDS Endpoint
+echo "Step 4 get RDS endpoint "
+aws cloudformation describe-stacks  \
+  --region $WOF_AWS_REGION \
+  --stack-name $WOF_CFN_STACK_NAME \
+  --query "Stacks[0].Outputs[?OutputKey=='RDSEndpointAddress'].OutputValue" \
+  --output text
+
+#getting VPC ID
+echo "Step 5 VPC id"
+aws cloudformation describe-stacks  \
+  --region $WOF_AWS_REGION \
+  --stack-name $WOF_CFN_STACK_NAME \
+  --query "Stacks[0].Outputs[?OutputKey=='VPCId'].OutputValue" \
+  --output text
+
+# getting public subnet id
+echo "Step 6 get subnets "
+echo "public subnets 1"
+aws cloudformation describe-stacks  \
+  --region $WOF_AWS_REGION \
+  --stack-name $WOF_CFN_STACK_NAME \
+  --query "Stacks[0].Outputs[?OutputKey=='PublicSubnet0'].OutputValue" \
+  --output text
+
+#getting public subnet 
+echo "Public sub 2"
+aws cloudformation describe-stacks  \
+  --region $WOF_AWS_REGION \
+  --stack-name $WOF_CFN_STACK_NAME \
+  --query "Stacks[0].Outputs[?OutputKey=='PublicSubnet1'].OutputValue" \
+  --output text
+echo "Private sub1"
+aws cloudformation describe-stacks  \
+  --region $WOF_AWS_REGION \
+  --stack-name $WOF_CFN_STACK_NAME \
+  --query "Stacks[0].Outputs[?OutputKey=='PrivateSubnet0'].OutputValue" \
+  --output text
+
+# Private subnet 2
+echo "Private sub2"
+aws cloudformation describe-stacks  \
+  --region $WOF_AWS_REGION \
+  --stack-name $WOF_CFN_STACK_NAME \
+  --query "Stacks[0].Outputs[?OutputKey=='PrivateSubnet1'].OutputValue" \
+  --output text
+
+#ALB Security-group
+echo "ALB Security-group"
+aws cloudformation describe-stacks  \
+  --region $WOF_AWS_REGION \
+--stack-name $WOF_CFN_STACK_NAME \
+  --query "Stacks[0].Outputs[?OutputKey=='ALBSecurityGroup'].OutputValue" \
+  --output text
+
+#wordpress Target Group
+echo "Wordpress Target Group"
+aws cloudformation describe-stacks  \
+  --region $WOF_AWS_REGION \
+  --stack-name $WOF_CFN_STACK_NAME \
+  --query "Stacks[0].Outputs[?OutputKey=='WordPressTargetGroup'].OutputValue" \
+  --output text
+
+#getting EFSID
+echo "Export"
+export WOF_EFS_FS_ID=$(aws cloudformation describe-stacks  \
+  --region $WOF_AWS_REGION \
+  --stack-name $WOF_CFN_STACK_NAME \
+  --query "Stacks[0].Outputs[?OutputKey=='EFSFSId'].OutputValue" \
+  --output text)
+
+#getting EFS-Accesspoint
+export WOF_EFS_AP=$(aws cloudformation describe-stacks  \
+  --region $WOF_AWS_REGION \
+  --stack-name $WOF_CFN_STACK_NAME \
+  --query "Stacks[0].Outputs[?OutputKey=='EFSAccessPoint'].OutputValue" \
+  --output text)
+
+#RDS- ENDPOINT
+export WOF_RDS_ENDPOINT=$(aws cloudformation describe-stacks  \
+  --region $WOF_AWS_REGION \
+  --stack-name $WOF_CFN_STACK_NAME \
+  --query "Stacks[0].Outputs[?OutputKey=='RDSEndpointAddress'].OutputValue" \
+  --output text)
+
+#getting VPCID
+export WOF_VPC_ID=$(aws cloudformation describe-stacks  \
+  --region $WOF_AWS_REGION \
+  --stack-name $WOF_CFN_STACK_NAME \
+--query "Stacks[0].Outputs[?OutputKey=='VPCId'].OutputValue" \
+  --output text)
+export WOF_PUBLIC_SUBNET0=$(aws cloudformation describe-stacks  \
+  --region $WOF_AWS_REGION \
+  --stack-name $WOF_CFN_STACK_NAME \
+  --query "Stacks[0].Outputs[?OutputKey=='PublicSubnet0'].OutputValue" \
+  --output text)
+
+# Public Subnet 1
+export WOF_PUBLIC_SUBNET1=$(aws cloudformation describe-stacks  \
+  --region $WOF_AWS_REGION \
+  --stack-name $WOF_CFN_STACK_NAME \
+  --query "Stacks[0].Outputs[?OutputKey=='PublicSubnet1'].OutputValue" \
+  --output text)
+
+#exporting private subnet
+export WOF_PRIVATE_SUBNET0=$(aws cloudformation describe-stacks  \
+  --region $WOF_AWS_REGION \
+  --stack-name $WOF_CFN_STACK_NAME \
+  --query "Stacks[0].Outputs[?OutputKey=='PrivateSubnet0'].OutputValue" \
+  --output text)
+
+export WOF_PRIVATE_SUBNET1=$(aws cloudformation describe-stacks  \
+  --region $WOF_AWS_REGION \
+  --stack-name $WOF_CFN_STACK_NAME \
+  --query "Stacks[0].Outputs[?OutputKey=='PrivateSubnet1'].OutputValue" \
+  --output text)
+
+#exporting AWS
+export WOF_ALB_SG_ID=$(aws cloudformation describe-stacks  \
+  --region $WOF_AWS_REGION \
+  --stack-name $WOF_CFN_STACK_NAME \
+  --query "Stacks[0].Outputs[?OutputKey=='ALBSecurityGroup'].OutputValue" \
+  --output text)
+export WOF_TG_ARN=$(aws cloudformation describe-stacks  \
+  --region $WOF_AWS_REGION \
+  --stack-name $WOF_CFN_STACK_NAME \
+  --query "Stacks[0].Outputs[?OutputKey=='WordPressTargetGroup'].OutputValue" \
+  --output text)
+echo $WOF_TG_ARN
+echo $WOF_ALB_SG_ID
+echo $WOF_PRIVATE_SUBNET1
+echo $WOF_PRIVATE_SUBNET0
+echo $WOF_PUBLIC_SUBNET1
+echo $WOF_PUBLIC_SUBNET0
+echo $WOF_VPC_ID
+echo $WOF_RDS_ENDPOINT
+echo $WOF_EFS_AP
+echo $WOF_EFS_FS_ID
+
+# creating a file containing yaml code for creating task definition
+cat > wp-task-definition.json << EOF
+{   "networkMode": "awsvpc",
+    "containerDefinitions": [
+        {
+            "portMappings": [
+                {
+                    "containerPort": 8080,
+                    "protocol": "tcp"
+                }
+            ],
+            "essential": true,
+            "mountPoints": [
+                {
+                    "containerPath": "/bitnami/wordpress",
+                    "sourceVolume": "wordpress"
+                }
+            ],
+            "name": "wordpress",
+            "image": "bitnami/wordpress",
+            "environment": [
+                {
+                    "name": "MARIADB_HOST",
+   "value": "${WOF_RDS_ENDPOINT}"
+                },
+                {
+                    "name": "WORDPRESS_DATABASE_USER",
+                    "value": "admin"
+                },
+                {
+                    "name": "WORDPRESS_DATABASE_PASSWORD",
+                    "value": "supersecretpassword"
+                },
+                {
+                    "name": "WORDPRESS_DATABASE_NAME",
+                    "value": "wordpress"
+                },
+                {
+                    "name": "PHP_MEMORY_LIMIT",
+                    "value": "512M"
+                },
+                {
+                    "name": "enabled",
+                    "value": "false"
+                },
+                {
+                    "name": "ALLOW_EMPTY_PASSWORD",
+                    "value": "yes"
+                }
+            ]
+        }
+    ],
+    "requiresCompatibilities": [
+        "FARGATE"
+    ],
+"cpu": "1024",
+    "memory": "3072",
+    "volumes": [
+        {
+            "name": "wordpress",
+            "efsVolumeConfiguration": {
+                "fileSystemId": "${WOF_EFS_FS_ID}",
+                "transitEncryption": "ENABLED",
+                "authorizationConfig": {
+                    "accessPointId": "${WOF_EFS_AP}",
+                    "iam": "DISABLED"
+                }
+            }
+        }
+    ],
+    "family": "wof-tutorial"
+}
+EOF
+echo "Register task definition"
+
+#getting task definition ARN
+
+WOF_TASK_DEFINITION_ARN=$(aws ecs register-task-definition \
+--cli-input-json file://wp-task-definition.json \
+--region $WOF_AWS_REGION \
+--query taskDefinition.taskDefinitionArn --output text)
+echo $WOF_TASK_DEFINITION_ARN
+
+# creating ECS cluster
+echo "Create an ECS cluster:"
+
+aws ecs create-cluster \
+  --cluster-name $WOF_ECS_CLUSTER_NAME \
+  --region $WOF_AWS_REGION
+echo $WOF_ECS_CLUSTER_NAME
+
+# Creating a security group that accepts traffic on port 8080 from the ALB’s security group
+
+WOF_SVC_SG_ID=$(aws ec2 create-security-group \
+  --description Svc-WordPress-on-Fargate \
+--group-name Svc-WordPress-on-Fargate \
+  --vpc-id $WOF_VPC_ID --region $WOF_AWS_REGION \
+  --query 'GroupId' --output text)
+
+#Accept traffic on port 8080
+aws ec2 authorize-security-group-ingress \
+  --group-id $WOF_SVC_SG_ID --protocol tcp \
+  --port 8080 --source-group $WOF_ALB_SG_ID \
+  --region $WOF_AWS_REGION
+echo $WOF_SVC_SG_ID
+
+# creating ECS service
+
+echo "Create an ECS service”
+aws ecs create-service \
+  --cluster $WOF_ECS_CLUSTER_NAME \
+  --service-name wof-efs-rw-service \
+  --task-definition "${WOF_TASK_DEFINITION_ARN}" \
+  --load-balancers targetGroupArn="${WOF_TG_ARN}",containerName=wordpress,containerPort=8080 \
+  --desired-count 2 \
+  --platform-version 1.4.0 \
+  --launch-type FARGATE \
+  --deployment-configuration maximumPercent=100,minimumHealthyPercent=0 \
+  --network-configuration
+
